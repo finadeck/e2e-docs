@@ -2,14 +2,25 @@
 
 A Cypress plugin that generates beautiful documentation from your end-to-end tests.
 
+## Features
+
+- 📝 **Auto-Documentation**: Automatically generates Markdown documentation from your Cypress tests
+- 📸 **Screenshot Integration**: Embeds screenshots directly alongside the test steps they relate to
+- 🧩 **Structured Organization**: Organizes tests into use cases and steps for clear documentation
+- 🌲 **Navigation Sidebar**: Generates a navigable sidebar for easy browsing
+- 🧪 **Test Compatibility**: Works alongside regular Cypress tests
+
 ## Installation
 
 ```bash
 # Using npm
-npm install e2e-docs --save-dev
+npm install github:finadeck/e2e-docs --save-dev
 
 # Using yarn
-yarn add -D e2e-docs
+yarn add -D github:finadeck/e2e-docs
+
+# Using pnpm
+pnpm add -D github:finadeck/e2e-docs
 ```
 
 ## Configuration
@@ -22,17 +33,17 @@ import { defineConfig } from 'cypress'
 import { generate } from 'e2e-docs'
 
 export default defineConfig({
-  projectId: 'Cypress test project',
   e2e: {
-    // Your other Cypress configuration
     setupNodeEvents(on, config) {
-      generate(on, config)
+      // Register the e2e-docs plugin
+      generate(on, config, {
+        // Custom options (all optional)
+        cypressDir: 'cypress',        // Default: 'cypress'
+        testDir: 'e2e',               // Default: 'e2e'
+        testRegex: /\.cy\.ts$/,       // Default: /\.cy\.ts$/
+        outDir: 'docs/use-cases'      // Default: 'docs/use-cases'
+      })
       
-      // Your other Cypress plugins
-      config.env = {
-        ...process.env,
-        ...config.env
-      }
       return config
     }
   }
@@ -41,58 +52,83 @@ export default defineConfig({
 
 ## Usage
 
-In your Cypress test files, you can use the `usecase` and `step` functions to document your tests:
+In your Cypress test files, use the provided functions to document your tests:
 
 ```typescript
 /// <reference types="cypress" />
 
-import { usecase, step } from 'e2e-docs'
+import { usecase, step, description } from 'e2e-docs'
 
-usecase('View scenarios', () => {
-  step('Navigate to Settings / Company Settings / Budgeting / Scenarios', () => {
-    cy.goTo(`/settings/company/budgeting/budgeting-scenarios`)
-    cy.wait(4000)
-    cy.screenshot('budget-creation-start')
+usecase('Login Functionality', () => {
+  description('Testing the user login functionality')
+  
+  step('Navigate to the login page', () => {
+    cy.visit('/login')
+    cy.screenshot('login-page') // Screenshot will be included in docs
   })
   
-  step('The default scenario is first in the list', () => {
-    cy.get('.ant-table-row-level-0 td').eq(0).should('have.text', 'Default')
-    cy.get('.ant-table-row-level-0 td').eq(1).should('have.text', 'Default')
+  step('Enter username and password', () => {
+    cy.get('#username').type('testuser')
+    cy.get('#password').type('password123')
+  })
+  
+  step('Click the login button', () => {
+    cy.get('#login-button').click()
+    cy.screenshot('after-login') // Screenshot will be included in docs
+  })
+  
+  step('Verify successful login', () => {
+    cy.get('.welcome-message').should('contain', 'Welcome!')
   })
 
   // Regular Cypress tests can be mixed with documented steps
-  it('random assertion', () => {
-    cy.get('.ant-table-row-level-0 td').eq(0).should('not.have.text', 'something')
-  })
-
-  step('The default scenario cannot be locked or deleted', () => {
-    cy.get('[data-cy="locked-button"]').first().should('be.disabled')
-    cy.get('[data-cy="delete-button"]').first().should('be.disabled')
+  it('can also include regular Cypress tests', () => {
+    cy.get('.logout-button').should('be.visible')
   })
 })
 ```
 
-## Features
+## Generated Documentation
 
-- Generates HTML documentation from your Cypress tests
-- Captures screenshots and includes them in the documentation
-- Organizes tests into use cases and steps
-- Works alongside regular Cypress tests
-- Customizable output directory
+After running your Cypress tests, documentation will be generated in the specified output directory (`docs/use-cases` by default). The documentation includes:
 
-## Advanced Configuration
+- Markdown files for each feature with descriptions and steps
+- Screenshots embedded directly alongside the relevant steps
+- A sidebar for navigation between features
+- Index page for easy browsing
 
-You can customize the plugin behavior by passing a configuration object:
+You can serve the documentation using any static site server or tools like [docsify](https://docsify.js.org/).
 
-```typescript
-import { generate } from 'e2e-docs'
+## File Structure
 
-generate(on, config, {
-  outDir: 'docs/e2e',       // Output directory (default: 'cypress/docs')
-  screenshotsDir: 'custom', // Screenshots directory (default: 'screenshots')
-  // Other configuration options
-})
+The generated documentation follows this structure:
+
 ```
+docs/use-cases/
+├── _sidebar.md     # Navigation sidebar
+├── index.html      # Main HTML page
+├── feature1/       # Feature directory
+│   ├── readme.md   # Feature documentation
+│   └── *.png       # Screenshots for the feature
+├── feature2/
+│   ├── readme.md
+│   └── *.png
+└── ...
+```
+
+## Advanced Usage
+
+### Custom Templates
+
+You can customize the output templates by creating your own templates directory and modifying the plugin configuration.
+
+### Integration with CI/CD
+
+You can integrate the documentation generation into your CI/CD pipeline by running Cypress tests and then serving the generated documentation as static files.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
