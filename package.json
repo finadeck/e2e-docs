@@ -6,10 +6,12 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "templates"
+    "templates",
+    "src"
   ],
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "repository": {
