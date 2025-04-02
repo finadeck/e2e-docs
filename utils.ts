@@ -148,7 +148,7 @@ export const ucToMarkdown = (
 export const copyDirectorySync = (source: string, destination: string) => {
   // Check if source exists and is a directory
   if (!existsSync(source)) {
-    throw new Error(`Source directory '${source}' does not exist`)
+    return
   }
   if (!statSync(source).isDirectory()) {
     throw new Error(`Source '${source}'—is not a directory`)
