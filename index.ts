@@ -5,7 +5,7 @@ import { writeSidebar, writeScreenshots, writeRoot, writeFeatures, getFeatures }
 import { Config } from './types';
 
 export const generate = (on: Cypress.PluginEvents, cypressConfig: Cypress.PluginConfigOptions, config?: Config) => {
-  const { cypressDir = 'cypress', testDir = 'e2e', testRegex = /\.cy\.ts$/, outDir = 'turd' } = config || {}
+  const { cypressDir = 'cypress', testDir = 'e2e', testRegex = /\.cy\.ts$/, outDir = 'docs/use-cases' } = config || {}
 
   on('after:run', () =>
     g(cypressConfig, {
