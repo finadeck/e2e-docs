@@ -20,6 +20,9 @@
   },
   "author": "Finadeck Oy",
   "license": "MIT",
+  "peerDependencies": {
+    "cypress": ">=10.0.0"
+  },
   "devDependencies": {
     "@types/node": "^22.13.17",
     "cypress": "^14.2.1",

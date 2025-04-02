@@ -1,6 +1,8 @@
+/// <reference types="cypress" />
+
 import { existsSync, statSync, mkdirSync, readdirSync, copyFileSync, writeFileSync, readFileSync } from 'fs'
 import { FeatureMap, TreeNode, Config } from './types'
-const path = require('path')
+import * as path from 'path';
 
 export const writeRoot = (cypressConfig: Cypress.PluginConfigOptions, config: Config) => {
   const packageRootDir = path.join(__dirname, '..', 'templates')

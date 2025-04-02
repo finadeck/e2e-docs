@@ -1,6 +1,8 @@
-const path = require('path')
-import { writeSidebar, writeScreenshots, writeRoot, writeFeatures, getFeatures } from './utils'
-import { Config } from './types'
+/// <reference types="cypress" />
+
+import * as path from 'path';
+import { writeSidebar, writeScreenshots, writeRoot, writeFeatures, getFeatures } from './utils';
+import { Config } from './types';
 
 export const generate = (on: Cypress.PluginEvents, cypressConfig: Cypress.PluginConfigOptions, config?: Config) => {
   const { cypressDir = 'cypress', testDir = 'e2e', testRegex = /\.cy\.ts$/, outDir = 'turd' } = config || {}
