@@ -38,7 +38,7 @@ exports.description = exports.usecase = exports.step = exports.generate = void 0
 const path = __importStar(require("path"));
 const utils_1 = require("./utils");
 const generate = (on, cypressConfig, config) => {
-    const { cypressDir = 'cypress', testDir = 'e2e', testRegex = /\.cy\.ts$/, outDir = 'turd' } = config || {};
+    const { cypressDir = 'cypress', testDir = 'e2e', testRegex = /\.cy\.ts$/, outDir = 'docs/use-cases' } = config || {};
     on('after:run', () => g(cypressConfig, {
         cypressDir,
         testDir,
