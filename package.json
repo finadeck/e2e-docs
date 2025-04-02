@@ -1,0 +1,26 @@
+{
+  "name": "e2e-docs",
+  "version": "1.0.0",
+  "description": "Brief description of what your package does",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/finadeck/e2e-docs.git"
+  },
+  "author": "Finadeck Oy",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.13.17",
+    "cypress": "^14.2.1",
+    "typescript": "^5.0.0"
+  }
+}
