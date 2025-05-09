@@ -61,31 +61,33 @@ In your Cypress test files, use the provided functions to document your tests:
 
 import { usecase, step, description } from 'e2e-docs'
 
-usecase('Login Functionality', () => {
-  description('Testing the user login functionality')
-  
-  step('Navigate to the login page', () => {
-    cy.visit('/login')
-    cy.screenshot('login-page') // Screenshot will be included in docs
-  })
-  
-  step('Enter username and password', () => {
-    cy.get('#username').type('testuser')
-    cy.get('#password').type('password123')
-  })
-  
-  step('Click the login button', () => {
-    cy.get('#login-button').click()
-    cy.screenshot('after-login') // Screenshot will be included in docs
-  })
-  
-  step('Verify successful login', () => {
-    cy.get('.welcome-message').should('contain', 'Welcome!')
-  })
+feature('User authentication', () => {
+  usecase('Login Functionality', () => {
+    description('Testing the user login functionality')
+    
+    step('Navigate to the login page', () => {
+      cy.visit('/login')
+      cy.screenshot('login-page') // Screenshot will be included in docs
+    })
+    
+    step('Enter username and password', () => {
+      cy.get('#username').type('testuser')
+      cy.get('#password').type('password123')
+    })
+    
+    step('Click the login button', () => {
+      cy.get('#login-button').click()
+      cy.screenshot('after-login') // Screenshot will be included in docs
+    })
+    
+    step('Verify successful login', () => {
+      cy.get('.welcome-message').should('contain', 'Welcome!')
+    })
 
-  // Regular Cypress tests can be mixed with documented steps
-  it('can also include regular Cypress tests', () => {
-    cy.get('.logout-button').should('be.visible')
+    // Regular Cypress tests can be mixed with documented steps
+    it('can also include regular Cypress tests', () => {
+      cy.get('.logout-button').should('be.visible')
+    })
   })
 })
 ```
