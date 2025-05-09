@@ -59,7 +59,7 @@ In your Cypress test files, use the provided functions to document your tests:
 ```typescript
 /// <reference types="cypress" />
 
-import { usecase, step, description } from 'e2e-docs'
+import { feature, usecase, step, description } from 'e2e-docs'
 
 feature('User authentication', () => {
   usecase('Login Functionality', () => {
