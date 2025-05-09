@@ -1,9 +1,12 @@
 {
   "name": "e2e-docs",
   "version": "1.0.0",
-  "description": "Generate documentation from Cypress end-to-end tests",
+  "description": "Generate HTML documentation from Cypress end-to-end tests",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "e2e-docs": "./dist/cli.js"
+  },
   "files": [
     "dist",
     "templates"
@@ -13,6 +16,8 @@
     "clean": "rimraf dist",
     "prepare": "npm run clean && npm run build",
     "prepublishOnly": "npm run build",
+    "generate-docs": "node ./dist/cli.js",
+    "dev:external": "npm run build && node ./dist/cli.js",
     "test": "cypress run"
   },
   "repository": {
@@ -24,7 +29,7 @@
     "documentation",
     "e2e",
     "testing",
-    "markdown"
+    "html"
   ],
   "author": "Finadeck Oy",
   "license": "MIT",

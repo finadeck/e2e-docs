@@ -1,88 +1,90 @@
+// src/core/generate.ts
 /// <reference types="cypress" />
 
-import * as path from 'path'
-import { readFileSync } from 'fs'
-import { Config, FeatureMap } from '../types'
-import { getFeatures, writeFeature, writeRoot, ensureDirectoryExists } from '../utils/file-utils'
-import { ucToMarkdown, generateSidebar } from '../utils/markdown-utils'
-import { copyScreenshotsToFeatures } from '../utils/screenshot-utils'
+import * as path from 'path';
+import { Config, FeatureMap } from '../types';
+import { getFeatures, ensureDirectoryExists } from '../utils/file-utils';
+import { 
+  createFeaturesByPath,
+  writeDirectoryHtml,
+  writeIndexHtml,
+  copyCssFiles
+} from '../utils/html-utils';
+import { copyScreenshotsToFeatures } from '../utils/screenshot-utils';
 
 /**
- * Writes feature markdown files to the output directory
+ * Writes feature HTML files to the output directory
  */
 export const writeFeatures = (
   cypressConfig: Cypress.PluginConfigOptions,
   config: Config,
   featureMap: FeatureMap
 ): void => {
-  const testDir = path.join(cypressConfig.projectRoot, config.cypressDir, config.testDir)
-
-  for (const featurePath of Object.keys(featureMap)) {
-    const useCases = featureMap[featurePath]
-    // Use the directory name as the feature title
-    const title = `# ${featurePath.split('/').pop()}`
-    
-    // Convert each use case to markdown
-    const md = useCases.map(useCase => {
-      const testFilePath = path.join(testDir, featurePath, useCase)
-      const testContent = readFileSync(testFilePath, 'utf8')
-      return ucToMarkdown(cypressConfig, config, featurePath, testContent)
-    }).filter(Boolean) // Filter out null values
-    
-    // Write the feature markdown
-    writeFeature(cypressConfig, config, featurePath, [title, ...md].join('\n\n'))
-  }
-}
-
-/**
- * Writes the sidebar file
- */
-export const writeSidebar = (
-  cypressConfig: Cypress.PluginConfigOptions,
-  config: Config,
-  featureMap: FeatureMap
-): void => {
-  const outputFile = path.join(cypressConfig.projectRoot, config.outDir, `_sidebar.md`)
-  const outputDir = path.dirname(outputFile)
+  // Create a map of features by directory path
+  const featuresByPath = createFeaturesByPath(cypressConfig, config, featureMap);
   
-  ensureDirectoryExists(outputDir)
+  // Process each directory
+  Object.entries(featuresByPath).forEach(([dirPath, features]) => {
+    // Write the HTML for this directory
+    writeDirectoryHtml(cypressConfig, config, dirPath, features, featuresByPath);
+  });
   
-  // Generate and write the sidebar content
-  const sidebarContent = generateSidebar(featureMap)
-  require('fs').writeFileSync(outputFile, sidebarContent)
-}
+  // Write index.html
+  writeIndexHtml(cypressConfig, config, featuresByPath);
+};
 
 /**
  * Main function to generate documentation
  */
 export const generateDocs = (cypressConfig: Cypress.PluginConfigOptions, config: Config): void => {
   // Get the test directory
-  const testDir = path.join(cypressConfig.projectRoot, config.cypressDir, config.testDir)
+  const testDir = path.join(cypressConfig.projectRoot, config.cypressDir, config.testDir);
   
   // Find all features
-  const features = getFeatures(config, testDir)
+  const features = getFeatures(config, testDir);
   
   // Generate documentation
-  console.log(`Generating documentation for ${Object.keys(features).length} features...`)
+  console.log(`Generating HTML documentation for ${Object.keys(features).length} directories...`);
   
-  // Process screenshots first to ensure they're available when generating markdown
-  console.log('Processing screenshots...')
-  copyScreenshotsToFeatures(cypressConfig, config)
+  // Process screenshots first to ensure they're available when generating HTML
+  console.log('Processing screenshots...');
+  copyScreenshotsToFeatures(cypressConfig, config);
   
-  // Generate feature documentation
-  console.log('Generating feature documentation...')
-  writeFeatures(cypressConfig, config, features)
+  // Generate feature HTML documentation
+  console.log('Generating feature HTML documentation...');
+  writeFeatures(cypressConfig, config, features);
   
-  // Generate sidebar
-  console.log('Generating navigation sidebar...')
-  writeSidebar(cypressConfig, config, features)
+  // Copy CSS files
+  console.log('Copying CSS files...');
+  copyCssFiles(cypressConfig, config);
   
-  // Copy template files
-  console.log('Copying template files...')
-  writeRoot(cypressConfig, config)
+  console.log(`Documentation successfully generated in ${path.join(cypressConfig.projectRoot, config.outDir)}`);
+};
+
+/**
+ * Standalone function to generate documentation without running tests
+ */
+export const generateStandalone = (
+  projectRoot: string,
+  config?: Partial<Config>
+): void => {
+  const defaultConfig: Config = {
+    cypressDir: 'cypress', 
+    testDir: 'e2e', 
+    testRegex: /\.cy\.ts$/, 
+    outDir: 'docs/use-cases'
+  };
   
-  console.log(`Documentation successfully generated in ${path.join(cypressConfig.projectRoot, config.outDir)}`)
-}
+  const finalConfig: Config = { ...defaultConfig, ...config };
+  
+  // Create a minimal Cypress config object with just what we need
+  const cypressConfig: Cypress.PluginConfigOptions = {
+    projectRoot,
+    screenshotsFolder: path.join(projectRoot, finalConfig.cypressDir, 'screenshots')
+  } as Cypress.PluginConfigOptions;
+  
+  generateDocs(cypressConfig, finalConfig);
+};
 
 /**
  * Plugin registration function
@@ -90,17 +92,27 @@ export const generateDocs = (cypressConfig: Cypress.PluginConfigOptions, config:
 export const generate = (
   on: Cypress.PluginEvents, 
   cypressConfig: Cypress.PluginConfigOptions, 
-  config?: Config
+  config?: Config & { generateOnlyWithCommand?: boolean }
 ): void => {
   const defaultConfig: Config = {
     cypressDir: 'cypress', 
     testDir: 'e2e', 
     testRegex: /\.cy\.ts$/, 
     outDir: 'docs/use-cases'
+  };
+  
+  const finalConfig: Config = { ...defaultConfig, ...config };
+  
+  // Only register the after:run event if we're not using generateOnlyWithCommand
+  if (!config?.generateOnlyWithCommand) {
+    on('after:run', () => generateDocs(cypressConfig, finalConfig));
   }
   
-  const finalConfig: Config = { ...defaultConfig, ...config }
-  
-  // Register after:run event
-  on('after:run', () => generateDocs(cypressConfig, finalConfig))
-}
+  // Add a custom task to manually generate documentation
+  on('task', {
+    generateDocs: () => {
+      generateDocs(cypressConfig, finalConfig);
+      return null; // Return value is required for Cypress tasks
+    }
+  });
+};

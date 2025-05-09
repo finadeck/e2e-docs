@@ -1,0 +1,50 @@
+/* templates/styles/theme.css */
+:root {
+  /* Colors */
+  --primary-color: #42b983;
+  --primary-color-dark: #33a06f;
+  --text-color: #2c3e50;
+  --heading-color: #1a2c38;
+  --bg-color: #ffffff;
+  --border-color: #eaecef;
+  --border-color-light: #f0f0f0;
+  --code-bg-color: #f8f8f8;
+  --accent-color: #42b983;
+  --description-color: #666666;
+  --caption-color: #666666;
+  --feature-heading-color: #1a6a96;
+  
+  /* Sidebar */
+  --sidebar-width: 300px;
+  --sidebar-bg-color: #f8f8f8;
+  --sidebar-text-color: #2c3e50;
+  --sidebar-folder-color: #2c3e50;
+  --sidebar-folder-hover-color: #42b983;
+  --sidebar-link-color: #476582;
+  --sidebar-link-hover-color: #42b983;
+  --sidebar-active-color: #42b983;
+  --sidebar-feature-color: #2a5b7a;
+  --sidebar-feature-hover-color: #42b983;
+  --sidebar-feature-active-color: #42b983;
+  --sidebar-usecase-color: #6c8eab;
+  --sidebar-usecase-hover-color: #42b983;
+  
+  /* Links */
+  --link-color: #42b983;
+  --link-hover-color: #33a06f;
+  
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  --font-size-base: 16px;
+  --font-size-small: 14px;
+  --font-size-h1: 2rem;
+  --font-size-h2: 1.65rem;
+  --font-size-h3: 1.35rem;
+  --font-size-h4: 1.15rem;
+  
+  /* Layout */
+  --content-max-width: 800px;
+  --border-radius: 4px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

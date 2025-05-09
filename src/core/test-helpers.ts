@@ -2,6 +2,7 @@
 
 type TestFn = (name: string, fn: () => void) => void
 type SuiteFn = (name: string, fn: () => void) => void
+type FeatureFn = (name: string, fn: () => void) => void
 type DescFn = (name: string) => void
 
 /**
@@ -23,6 +24,16 @@ export const step: TestFn = (name, fn) => {
  * @param fn The function containing the use case steps
  */
 export const usecase: SuiteFn = (name, fn) => {
+  describe(name, fn)
+}
+
+/**
+ * Adds a name to a feature.
+ * The name will be included in the generated documentation.
+ * 
+ * @param name The name
+ */
+export const feature: FeatureFn = (name, fn) => {
   describe(name, fn)
 }
 

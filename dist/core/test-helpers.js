@@ -1,7 +1,7 @@
 "use strict";
 /// <reference types="cypress" />
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.description = exports.usecase = exports.step = void 0;
+exports.description = exports.feature = exports.usecase = exports.step = void 0;
 /**
  * Defines a test step in an E2E test use case.
  * Each step will be documented in the generated documentation.
@@ -24,6 +24,16 @@ const usecase = (name, fn) => {
     describe(name, fn);
 };
 exports.usecase = usecase;
+/**
+ * Adds a name to a feature.
+ * The name will be included in the generated documentation.
+ *
+ * @param name The name
+ */
+const feature = (name, fn) => {
+    describe(name, fn);
+};
+exports.feature = feature;
 /**
  * Adds a description to a use case.
  * The description will be included in the generated documentation.
