@@ -1,7 +1,7 @@
 /// <reference types="cypress" />
 
 import { generate, generateStandalone } from './core/generate';
-import { feature, step, usecase, description } from './core/test-helpers';
+import { feature, usecase, step, description, alternative } from './core/test-helpers';
 
 export {
   generate,
@@ -9,5 +9,6 @@ export {
   feature,
   step,
   usecase,
-  description
+  description,
+  alternative
 };

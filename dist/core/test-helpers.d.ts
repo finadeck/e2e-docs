@@ -1,6 +1,7 @@
 type TestFn = (name: string, fn: () => void) => void;
 type SuiteFn = (name: string, fn: () => void) => void;
 type FeatureFn = (name: string, fn: () => void) => void;
+type AlternativeFn = (name: string, fn: () => void) => void;
 type DescFn = (name: string) => void;
 /**
  * Defines a test step in an E2E test use case.
@@ -25,6 +26,13 @@ export declare const usecase: SuiteFn;
  * @param name The name
  */
 export declare const feature: FeatureFn;
+/**
+ * Adds a name to a feature.
+ * The name will be included in the generated documentation.
+ *
+ * @param name The name
+ */
+export declare const alternative: AlternativeFn;
 /**
  * Adds a description to a use case.
  * The description will be included in the generated documentation.

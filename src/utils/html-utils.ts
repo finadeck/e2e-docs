@@ -89,6 +89,15 @@ export interface FeatureData {
   title: string;
   slug: string;
   useCases: UseCaseData[];
+  dirPath: string;  // Store the directory path for navigation
+  filePath?: string; // Original test file path
+}
+
+export interface AlternativeFlowData {
+  title: string;
+  slug: string;
+  steps: StepData[];
+  assertions: AssertionData[];
 }
 
 export interface UseCaseData {
@@ -96,12 +105,26 @@ export interface UseCaseData {
   description: string;
   slug: string;
   content: string;
+  steps: StepData[];
+  assertions: AssertionData[];
+  alternativeFlows: AlternativeFlowData[];
+}
+
+export interface StepData {
+  title: string;
+  content: string;
+  screenshotName?: string;
+}
+
+export interface AssertionData {
+  title: string;
+  content: string;
 }
 
 /**
  * Extract all features and their use cases from a Cypress test file
  */
-export const extractFeaturesAndUseCases = (content: string): FeatureData[] => {
+export const extractFeaturesAndUseCases = (content: string, dirPath: string, filePath?: string): FeatureData[] => {
   const features: FeatureData[] = [];
   const featurePattern = 'feature';
   const featureRegex = new RegExp(`${featurePattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*,\\s*\\(\\s*\\)\\s*=>\\s*{`, 'g');
@@ -126,17 +149,14 @@ export const extractFeaturesAndUseCases = (content: string): FeatureData[] => {
       const featureContent = content.substring(featureStartPos, featureEndPos);
       
       // Extract use cases within this feature
-      const useCases = extractUseCases(featureContent);
+      const useCases = extractUseCasesWithSteps(featureContent);
       
       features.push({
         title: featureTitle,
         slug: slugify(featureTitle),
-        useCases: useCases.map(uc => ({
-          title: uc.title,
-          description: uc.description,
-          slug: slugify(uc.title),
-          content: uc.content
-        }))
+        useCases,
+        dirPath,
+        filePath
       });
     }
   }
@@ -145,42 +165,55 @@ export const extractFeaturesAndUseCases = (content: string): FeatureData[] => {
 };
 
 /**
- * Extract all use cases from content
+ * Extract use cases with steps and alternative flows
  */
-export const extractUseCases = (content: string): { title: string; description: string; content: string }[] => {
-  const useCases: { title: string; description: string; content: string }[] = [];
+export const extractUseCasesWithSteps = (content: string): UseCaseData[] => {
+  const useCases: UseCaseData[] = [];
   const useCasePattern = 'usecase';
   const useCaseRegex = new RegExp(`${useCasePattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*,\\s*\\(\\s*\\)\\s*=>\\s*{`, 'g');
   
-  let match;
-  while ((match = useCaseRegex.exec(content)) !== null) {
-    const title = match[2];
-    const startPos = match.index;
+  let useCaseMatch;
+  while ((useCaseMatch = useCaseRegex.exec(content)) !== null) {
+    const useCaseTitle = useCaseMatch[2];
+    const useCaseStartPos = useCaseMatch.index;
     
     // Find the closing brace for this usecase block
     let openBraces = 1;
-    let endPos = startPos + match[0].length;
+    let useCaseEndPos = useCaseStartPos + useCaseMatch[0].length;
     
-    while (openBraces > 0 && endPos < content.length) {
-      const char = content[endPos];
+    while (openBraces > 0 && useCaseEndPos < content.length) {
+      const char = content[useCaseEndPos];
       if (char === '{') openBraces++;
       if (char === '}') openBraces--;
-      endPos++;
+      useCaseEndPos++;
     }
     
     if (openBraces === 0) {
-      const useCaseContent = content.substring(startPos, endPos);
+      const useCaseContent = content.substring(useCaseStartPos, useCaseEndPos);
       
-      // Extract description if present
+      // Extract description
       const descriptionPattern = 'description';
       const descriptionRegex = new RegExp(`${descriptionPattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*\\)`, 'g');
       const descMatch = descriptionRegex.exec(useCaseContent);
       const description = descMatch ? descMatch[2] : '';
       
+      // Extract steps for the main flow
+      const steps = extractSteps(useCaseContent);
+      
+      // Extract assertions (it blocks)
+      const assertions = extractAssertions(useCaseContent);
+      
+      // Extract alternative flows
+      const alternativeFlows = extractAlternativeFlows(useCaseContent);
+      
       useCases.push({
-        title,
+        title: useCaseTitle,
         description,
-        content: useCaseContent
+        slug: slugify(useCaseTitle),
+        content: useCaseContent,
+        steps,
+        assertions,
+        alternativeFlows
       });
     }
   }
@@ -189,14 +222,186 @@ export const extractUseCases = (content: string): { title: string; description: 
 };
 
 /**
+ * Extract steps from a use case or alternative flow content
+ */
+export const extractSteps = (content: string): StepData[] => {
+  const steps: StepData[] = [];
+  const stepPattern = 'step';
+  const stepRegex = new RegExp(`${stepPattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*,\\s*\\(\\s*\\)\\s*=>\\s*{`, 'g');
+  
+  let stepMatch;
+  while ((stepMatch = stepRegex.exec(content)) !== null) {
+    const stepTitle = stepMatch[2];
+    const stepStartPos = stepMatch.index;
+    
+    // Find the closing brace for this step block
+    let openBraces = 1;
+    let stepEndPos = stepStartPos + stepMatch[0].length;
+    
+    while (openBraces > 0 && stepEndPos < content.length) {
+      const char = content[stepEndPos];
+      if (char === '{') openBraces++;
+      if (char === '}') openBraces--;
+      stepEndPos++;
+    }
+    
+    if (openBraces === 0) {
+      const stepContent = content.substring(stepStartPos, stepEndPos);
+      
+      // Check for screenshot
+      const screenshotPattern = 'screenshot';
+      const screenshotRegex = new RegExp(`${screenshotPattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*\\)`, 'g');
+      const screenshotMatch = screenshotRegex.exec(stepContent);
+      const screenshotName = screenshotMatch ? screenshotMatch[2] : undefined;
+      
+      steps.push({
+        title: stepTitle,
+        content: stepContent,
+        screenshotName
+      });
+    }
+  }
+  
+  return steps;
+};
+
+/**
+ * Extract assertions (it blocks) from a use case or alternative flow content
+ */
+export const extractAssertions = (content: string): AssertionData[] => {
+  const assertions: AssertionData[] = [];
+  // Match 'it' blocks but not ones inside alternative flows
+  // We need to be more careful to avoid matching 'it' blocks inside alternatives
+  const itPattern = '\\bit\\s*\\(\\s*([\'"])((?:\\\\\\1|.)*?)\\1\\s*,\\s*\\(\\s*\\)\\s*=>\\s*{';
+  const alternativePattern = 'alternative\\s*\\(';
+  
+  // First, find all alternative positions to exclude
+  const alternativeRegex = new RegExp(alternativePattern, 'g');
+  const alternativePositions: { start: number, end: number }[] = [];
+  
+  let alternativeMatch;
+  while ((alternativeMatch = alternativeRegex.exec(content)) !== null) {
+    const start = alternativeMatch.index;
+    // Find closing brace for this alternative
+    let openBraces = 0; // Will be incremented when we find the first {
+    let end = start;
+    
+    // Find the opening brace first
+    let foundOpeningBrace = false;
+    while (!foundOpeningBrace && end < content.length) {
+      if (content[end] === '{') {
+        foundOpeningBrace = true;
+        openBraces = 1;
+      }
+      end++;
+    }
+    
+    // Now find the matching closing brace
+    while (openBraces > 0 && end < content.length) {
+      const char = content[end];
+      if (char === '{') openBraces++;
+      if (char === '}') openBraces--;
+      end++;
+    }
+    
+    alternativePositions.push({ start, end });
+  }
+  
+  // Now extract 'it' blocks outside of alternatives
+  const itRegex = new RegExp(itPattern, 'g');
+  let itMatch;
+  
+  while ((itMatch = itRegex.exec(content)) !== null) {
+    const itIndex = itMatch.index;
+    
+    // Check if this 'it' is inside an alternative
+    const isInsideAlternative = alternativePositions.some(pos => 
+      itIndex > pos.start && itIndex < pos.end);
+    
+    if (!isInsideAlternative) {
+      const itTitle = itMatch[2];
+      const itStartPos = itMatch.index;
+      
+      // Find the closing brace for this 'it' block
+      let openBraces = 1;
+      let itEndPos = itStartPos + itMatch[0].length;
+      
+      while (openBraces > 0 && itEndPos < content.length) {
+        const char = content[itEndPos];
+        if (char === '{') openBraces++;
+        if (char === '}') openBraces--;
+        itEndPos++;
+      }
+      
+      if (openBraces === 0) {
+        const itContent = content.substring(itStartPos, itEndPos);
+        
+        assertions.push({
+          title: itTitle,
+          content: itContent
+        });
+      }
+    }
+  }
+  
+  return assertions;
+};
+
+/**
+ * Extract alternative flows from a use case content
+ */
+export const extractAlternativeFlows = (content: string): AlternativeFlowData[] => {
+  const alternativeFlows: AlternativeFlowData[] = [];
+  const alternativePattern = 'alternative';
+  const alternativeRegex = new RegExp(`${alternativePattern}\\s*\\(\\s*(['"])((?:\\\\\\1|.)*?)\\1\\s*,\\s*\\(\\s*\\)\\s*=>\\s*{`, 'g');
+  
+  let alternativeMatch;
+  while ((alternativeMatch = alternativeRegex.exec(content)) !== null) {
+    const alternativeTitle = alternativeMatch[2];
+    const alternativeStartPos = alternativeMatch.index;
+    
+    // Find the closing brace for this alternative block
+    let openBraces = 1;
+    let alternativeEndPos = alternativeStartPos + alternativeMatch[0].length;
+    
+    while (openBraces > 0 && alternativeEndPos < content.length) {
+      const char = content[alternativeEndPos];
+      if (char === '{') openBraces++;
+      if (char === '}') openBraces--;
+      alternativeEndPos++;
+    }
+    
+    if (openBraces === 0) {
+      const alternativeContent = content.substring(alternativeStartPos, alternativeEndPos);
+      
+      // Extract steps for this alternative flow
+      const steps = extractSteps(alternativeContent);
+      
+      // Extract assertions for this alternative flow
+      const assertions = extractAssertions(alternativeContent);
+      
+      alternativeFlows.push({
+        title: alternativeTitle,
+        slug: slugify(alternativeTitle),
+        steps,
+        assertions
+      });
+    }
+  }
+  
+  return alternativeFlows;
+};
+
+/**
  * Process a test file to extract features and use cases
  */
 export const processTestFile = (
-  testFilePath: string
+  testFilePath: string,
+  dirPath: string
 ): FeatureData[] => {
   try {
     const content = readFileSync(testFilePath, 'utf8');
-    return extractFeaturesAndUseCases(content);
+    return extractFeaturesAndUseCases(content, dirPath, testFilePath);
   } catch (error) {
     console.warn(`Error processing test file ${testFilePath}:`, error);
     return [];
@@ -204,14 +409,57 @@ export const processTestFile = (
 };
 
 /**
+ * Convert a single step to HTML
+ */
+export const stepToHtml = (step: StepData, index: number): string => {
+  let html = `<li class="step">
+    <span class="step-title">${escapeHtml(step.title)}</span>`;
+  
+  // Add screenshot if available
+  if (step.screenshotName) {
+    html += `\n<figure class="screenshot">
+      <img src="${step.screenshotName}.png" alt="${escapeHtml(step.title)}" />
+      <figcaption>${escapeHtml(step.screenshotName)}</figcaption>
+    </figure>\n`;
+  }
+  
+  html += `</li>\n`;
+  return html;
+};
+
+/**
+ * Convert an assertion to HTML
+ */
+export const assertionToHtml = (assertion: AssertionData, index: number): string => {
+  return `<li class="assertion">
+    <span class="assertion-title">${escapeHtml(assertion.title)}</span>
+  </li>\n`;
+};
+
+/**
+ * Convert an alternative flow to HTML
+ */
+export const alternativeFlowToHtml = (flow: AlternativeFlowData, index: number): string => {
+  let html = `<div id="${flow.slug}" class="alternative-flow">
+    <h4>${escapeHtml(flow.title)}</h4>\n`;
+  
+  // Add steps
+  if (flow.steps.length > 0) {
+    html += `<ol class="steps alternative-steps">\n`;
+    flow.steps.forEach((step, i) => {
+      html += stepToHtml(step, i);
+    });
+    html += `</ol>\n`;
+  }
+  
+  html += `</div>\n`;
+  return html;
+};
+
+/**
  * Convert a single use case to HTML
  */
 export const useCaseToHtml = (useCase: UseCaseData): string => {
-  const useCaseContent = useCase.content;
-  const stepPattern = 'step';
-  const screenshotPattern = 'screenshot';
-  const stepsTitle = 'Steps';
-
   // Build HTML content
   let html = `<section id="${useCase.slug}" class="use-case">
     <h3>${escapeHtml(useCase.title)}</h3>\n`;
@@ -220,32 +468,32 @@ export const useCaseToHtml = (useCase: UseCaseData): string => {
   if (useCase.description) {
     html += `<p class="description">${escapeHtml(useCase.description)}</p>\n`;
   }
-
-  html += `<h4>${stepsTitle}</h4>\n<ul class="steps">\n`;
-
-  const stepRegex = /step\s*\(\s*(['"])((?:\\\1|.)*?)\1\s*,/gs;
-  let stepMatch;
-
-  while ((stepMatch = stepRegex.exec(useCaseContent)) !== null) {
-    const stepName = stepMatch[2].trim();
-    html += `<li>${escapeHtml(stepName)}`;
-
-    // Check if this step block contains a screenshot
-    const screenshotMatch = useCaseContent.slice(stepMatch.index).match(new RegExp(`${screenshotPattern}\\(['"]([^'"]+)['"]`));
-    if (screenshotMatch) {
-      const screenshotName = screenshotMatch[1];
-      
-      // Reference the screenshot in the same directory
-      html += `\n<figure class="screenshot">
-        <img src="${screenshotName}.png" alt="${escapeHtml(stepName)}" />
-        <figcaption>${escapeHtml(screenshotName)}</figcaption>
-      </figure>\n`;
-    }
-    
-    html += `</li>\n`;
+  
+  // Add main flow header
+  html += `<div class="main-flow">`;
+  
+  // Add steps
+  if (useCase.steps.length > 0) {
+    html += `<ol class="steps main-steps">\n`;
+    useCase.steps.forEach((step, index) => {
+      html += stepToHtml(step, index);
+    });
+    html += `</ol>\n`;
   }
 
-  html += `</ul>\n</section>\n`;
+  html += `</div>\n`; // Close main-flow div
+  
+  // Add alternative flows
+  if (useCase.alternativeFlows.length > 0) {
+    html += `<div class="alternative-flows">
+      <h4>Vaihtoehtoiset kulut</h4>\n`;
+    useCase.alternativeFlows.forEach((flow, index) => {
+      html += alternativeFlowToHtml(flow, index);
+    });
+    html += `</div>\n`;
+  }
+  
+  html += `</section>\n`;
   return html;
 };
 
@@ -268,13 +516,12 @@ export const featureToHtml = (feature: FeatureData): string => {
 /**
  * Process a test file and generate HTML
  */
-export const processTestFileToHtml = (testFilePath: string): string => {
+export const processTestFileToHtml = (testFilePath: string, dirPath: string): FeatureData[] => {
   try {
-    const features = processTestFile(testFilePath);
-    return features.map(feature => featureToHtml(feature)).join('\n');
+    return processTestFile(testFilePath, dirPath);
   } catch (error) {
     console.warn(`Error processing test file to HTML: ${testFilePath}`, error);
-    return '';
+    return [];
   }
 };
 
@@ -282,20 +529,21 @@ export const processTestFileToHtml = (testFilePath: string): string => {
  * Generate navigation tree structure
  */
 export const generateNavigation = (
-  featuresByPath: Record<string, FeatureData[]>,
-  currentPath: string = '',
-  currentFeature: string = '',
+  allFeatures: FeatureData[],
+  currentDirPath: string = '',
+  currentFeatureSlug: string = '',
   currentUseCase: string = ''
 ): string => {
   // Build a tree structure for navigation
-  const tree: { [key: string]: any } = {};
+  const dirTree: { [key: string]: any } = {};
   
-  // Process all features
-  Object.entries(featuresByPath).forEach(([dirPath, features]) => {
+  // Group features by directory
+  allFeatures.forEach(feature => {
+    const dirPath = feature.dirPath;
     const pathParts = dirPath.split('/').filter(Boolean);
     
     // Build the directory tree
-    let current = tree;
+    let current = dirTree;
     pathParts.forEach((part, index) => {
       if (!current[part]) {
         current[part] = {
@@ -306,19 +554,16 @@ export const generateNavigation = (
       current = current[part];
     });
     
-    // Add features to this directory
-    features.forEach(feature => {
-      const featureKey = feature.title;
-      current[featureKey] = {
-        _isFeature: true,
-        _path: dirPath,
-        _slug: feature.slug,
-        _useCases: feature.useCases.map(uc => ({
-          title: uc.title,
-          slug: uc.slug
-        }))
-      };
-    });
+    // Add feature to this directory
+    current[feature.title] = {
+      _isFeature: true,
+      _path: dirPath,
+      _slug: feature.slug,
+      _useCases: feature.useCases.map(uc => ({
+        title: uc.title,
+        slug: uc.slug
+      }))
+    };
   });
   
   // Generate HTML for navigation
@@ -345,12 +590,19 @@ export const generateNavigation = (
           const featurePath = node._path;
           const featureSlug = node._slug;
           const useCases = node._useCases || [];
-          const isActiveFeature = currentPath === featurePath && 
-                                 (currentFeature === featureSlug || !currentFeature);
+          const isActiveFeature = 
+            currentDirPath === featurePath && 
+            (currentFeatureSlug === featureSlug || !currentFeatureSlug);
+          
+          // Get relative path to feature page
+          const relativePath = getRelativePath(
+            currentDirPath, 
+            `${featurePath}/${featureSlug}`
+          );
           
           // Add feature link
           html += `${indentStr}<li class="feature ${isActiveFeature ? 'active' : ''}">
-            <a href="${getRelativePath(currentPath, featurePath)}/index.html#${featureSlug}">${escapeHtml(key)}</a>`;
+            <a href="${relativePath}.html">${escapeHtml(key)}</a>`;
           
           // Add use cases as sub-items
           if (useCases.length > 0) {
@@ -359,8 +611,22 @@ export const generateNavigation = (
             useCases.forEach((uc: any) => {
               const isActiveUseCase = isActiveFeature && uc.slug === currentUseCase;
               html += `${indentStr}    <li class="${isActiveUseCase ? 'active' : ''}">
-              <a href="${getRelativePath(currentPath, featurePath)}/index.html#${uc.slug}">${escapeHtml(uc.title)}</a>
-            </li>\n`;
+              <a href="${relativePath}.html#${uc.slug}">${escapeHtml(uc.title)}</a>`;
+              
+              // Add alternative flows if any
+              if (uc.alternativeFlows && uc.alternativeFlows.length > 0) {
+                html += `\n${indentStr}      <ul class="alternative-flows-nav">\n`;
+                uc.alternativeFlows.forEach((alt: any) => {
+                  html += `${indentStr}        <li>
+                  <a href="${relativePath}.html#${alt.slug}" class="alternative-flow-link">
+                    ${escapeHtml(alt.title)}
+                  </a>
+                </li>\n`;
+                });
+                html += `${indentStr}      </ul>\n`;
+              }
+              
+              html += `${indentStr}    </li>\n`;
             });
             
             html += `${indentStr}  </ul>`;
@@ -378,67 +644,61 @@ export const generateNavigation = (
     <h1>Test Documentation</h1>
   </div>
   <ul class="nav-tree">
-    ${buildNavHtml(tree)}
+    ${buildNavHtml(dirTree)}
   </ul>
 </nav>`;
 };
 
 /**
- * Create a feature map by file path for a directory
+ * Create a collection of all features across all directories
  */
-export const createFeaturesByPath = (cypressConfig: Cypress.PluginConfigOptions, config: Config, featureMap: FeatureMap): Record<string, FeatureData[]> => {
-  const featuresByPath: Record<string, FeatureData[]> = {};
+export const collectAllFeatures = (
+  cypressConfig: Cypress.PluginConfigOptions, 
+  config: Config, 
+  featureMap: FeatureMap
+): FeatureData[] => {
+  const allFeatures: FeatureData[] = [];
   const testDir = path.join(cypressConfig.projectRoot, config.cypressDir, config.testDir);
   
   // Process each feature directory and test file
   Object.entries(featureMap).forEach(([dirPath, testFiles]) => {
-    const features: FeatureData[] = [];
-    
     // Process all test files in this directory
     testFiles.forEach(testFile => {
       const testFilePath = path.join(testDir, dirPath, testFile);
-      const fileFeatures = processTestFile(testFilePath);
-      features.push(...fileFeatures);
+      const features = processTestFile(testFilePath, dirPath);
+      allFeatures.push(...features);
     });
-    
-    if (features.length > 0) {
-      featuresByPath[dirPath] = features;
-    }
   });
   
-  return featuresByPath;
+  return allFeatures;
 };
 
 /**
- * Writes a directory's HTML file to the output directory
+ * Write an individual feature page
  */
-export const writeDirectoryHtml = (
-  cypressConfig: Cypress.PluginConfigOptions, 
+export const writeFeatureHtml = (
+  cypressConfig: Cypress.PluginConfigOptions,
   config: Config,
-  dirPath: string,
-  features: FeatureData[],
-  featuresByPath: Record<string, FeatureData[]>
+  feature: FeatureData,
+  allFeatures: FeatureData[]
 ): void => {
   // Define the output file path
-  const outputDir = path.join(cypressConfig.projectRoot, config.outDir, dirPath);
-  const outputFile = path.join(outputDir, `index.html`);
+  const outputDir = path.join(cypressConfig.projectRoot, config.outDir, feature.dirPath);
+  const outputFile = path.join(outputDir, `${feature.slug}.html`);
 
   // Ensure the directory exists
   ensureDirectoryExists(outputDir);
 
-  // Get the directory title
-  const dirTitle = dirPath.split('/').pop() || 'Documentation';
-
-  // Generate the HTML content for all features
-  const featuresHtml = features.map(feature => featureToHtml(feature)).join('\n');
+  // Generate the HTML content for the feature
+  const featureHtml = featureToHtml(feature);
   
   // Wrap content in a container
   const wrappedContent = `<div class="content-wrapper">
     <header>
-      <h1>${dirTitle}</h1>
+      <h1>${escapeHtml(feature.title)}</h1>
     </header>
     <main class="feature-content">
-      ${featuresHtml}
+      ${featureHtml}
     </main>
   </div>`;
 
@@ -452,7 +712,73 @@ export const writeDirectoryHtml = (
   const cssPath = `${cssRelativePath}/main.css`.replace(/\\/g, '/');
 
   // Generate navigation
-  const navigation = generateNavigation(featuresByPath, dirPath);
+  const navigation = generateNavigation(allFeatures, feature.dirPath, feature.slug);
+
+  // Process template
+  const html = processTemplate(templatePath, {
+    'title': feature.title,
+    'content': wrappedContent,
+    'navigation': navigation,
+    'css_path': cssPath
+  });
+
+  // Write the HTML file
+  writeFileSync(outputFile, html);
+};
+
+/**
+ * Write a directory index page that lists the features in that directory
+ */
+export const writeDirectoryIndexHtml = (
+  cypressConfig: Cypress.PluginConfigOptions,
+  config: Config,
+  dirPath: string,
+  features: FeatureData[],
+  allFeatures: FeatureData[]
+): void => {
+  // Define the output file path
+  const outputDir = path.join(cypressConfig.projectRoot, config.outDir, dirPath);
+  const outputFile = path.join(outputDir, `index.html`);
+
+  // Ensure the directory exists
+  ensureDirectoryExists(outputDir);
+
+  // Get the directory title
+  const dirTitle = dirPath.split('/').pop() || 'Documentation';
+
+  // Generate the HTML content for the feature list
+  let featuresListHtml = `<div class="feature-list">
+    <h2>Features in ${escapeHtml(dirTitle)}</h2>
+    <ul>`;
+    
+  features.forEach(feature => {
+    featuresListHtml += `\n      <li><a href="${feature.slug}.html">${escapeHtml(feature.title)}</a></li>`;
+  });
+  
+  featuresListHtml += `\n    </ul>
+  </div>`;
+  
+  // Wrap content in a container
+  const wrappedContent = `<div class="content-wrapper">
+    <header>
+      <h1>${dirTitle}</h1>
+    </header>
+    <main class="feature-content">
+      ${featuresListHtml}
+    </main>
+  </div>`;
+
+  // Get template path
+  const templateDir = path.join(__dirname, '..', '..', 'templates');
+  const templatePath = path.join(templateDir, 'feature.html');
+
+  // Calculate the relative path to CSS
+  const cssRelativePath = path.relative(outputDir, path.join(cypressConfig.projectRoot, config.outDir, 'styles'));
+  // Ensure path uses forward slashes for URLs
+  const cssPath = `${cssRelativePath}/main.css`.replace(/\\/g, '/');
+
+  // Generate navigation
+  const navigation = generateNavigation(allFeatures, dirPath);
 
   // Process template
   const html = processTemplate(templatePath, {
@@ -467,12 +793,12 @@ export const writeDirectoryHtml = (
 };
 
 /**
- * Writes the index HTML file
+ * Writes the main index HTML file
  */
-export const writeIndexHtml = (
+export const writeMainIndexHtml = (
   cypressConfig: Cypress.PluginConfigOptions,
   config: Config,
-  featuresByPath: Record<string, FeatureData[]>
+  allFeatures: FeatureData[]
 ): void => {
   const outputDir = path.join(cypressConfig.projectRoot, config.outDir);
   const outputFile = path.join(outputDir, 'index.html');
@@ -481,13 +807,45 @@ export const writeIndexHtml = (
   const templateDir = path.join(__dirname, '..', '..', 'templates');
   const templatePath = path.join(templateDir, 'index.html');
 
+  // Generate feature list content
+  let featuresHtml = '';
+  
+  // Group features by directory
+  const featuresByDir: Record<string, FeatureData[]> = {};
+  allFeatures.forEach(feature => {
+    if (!featuresByDir[feature.dirPath]) {
+      featuresByDir[feature.dirPath] = [];
+    }
+    featuresByDir[feature.dirPath].push(feature);
+  });
+  
+  // Generate HTML for feature list by directory
+  Object.entries(featuresByDir).forEach(([dirPath, dirFeatures]) => {
+    const dirName = dirPath.split('/').pop() || dirPath;
+    featuresHtml += `<div class="directory">
+      <h2>${escapeHtml(dirName)}</h2>
+      <ul>`;
+      
+    dirFeatures.forEach(feature => {
+      featuresHtml += `
+        <li><a href="${dirPath}/${feature.slug}.html">${escapeHtml(feature.title)}</a></li>`;
+    });
+    
+    featuresHtml += `
+      </ul>
+    </div>`;
+  });
+  
+  const welcome = '<div class="welcome"><h2>Test Documentation</h2><p>Select a feature from the navigation menu to view its documentation.</p></div>';
+  const content = featuresHtml ? welcome + featuresHtml : welcome;
+
   // Generate navigation
-  const navigation = generateNavigation(featuresByPath);
+  const navigation = generateNavigation(allFeatures);
 
   // Process template
   const html = processTemplate(templatePath, {
     'title': 'Test Documentation',
-    'content': '<div class="welcome"><h2>Welcome to the Test Documentation</h2><p>Select a feature from the navigation menu to view its documentation.</p></div>',
+    'content': content,
     'navigation': navigation,
     'css_path': 'styles/main.css'
   });

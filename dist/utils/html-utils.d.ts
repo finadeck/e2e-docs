@@ -26,29 +26,69 @@ export interface FeatureData {
     title: string;
     slug: string;
     useCases: UseCaseData[];
+    dirPath: string;
+    filePath?: string;
+}
+export interface AlternativeFlowData {
+    title: string;
+    slug: string;
+    steps: StepData[];
+    assertions: AssertionData[];
 }
 export interface UseCaseData {
     title: string;
     description: string;
     slug: string;
     content: string;
+    steps: StepData[];
+    assertions: AssertionData[];
+    alternativeFlows: AlternativeFlowData[];
+}
+export interface StepData {
+    title: string;
+    content: string;
+    screenshotName?: string;
+}
+export interface AssertionData {
+    title: string;
+    content: string;
 }
 /**
  * Extract all features and their use cases from a Cypress test file
  */
-export declare const extractFeaturesAndUseCases: (content: string) => FeatureData[];
+export declare const extractFeaturesAndUseCases: (content: string, dirPath: string, filePath?: string) => FeatureData[];
 /**
- * Extract all use cases from content
+ * Extract use cases with steps and alternative flows
  */
-export declare const extractUseCases: (content: string) => {
-    title: string;
-    description: string;
-    content: string;
-}[];
+export declare const extractUseCasesWithSteps: (content: string) => UseCaseData[];
+/**
+ * Extract steps from a use case or alternative flow content
+ */
+export declare const extractSteps: (content: string) => StepData[];
+/**
+ * Extract assertions (it blocks) from a use case or alternative flow content
+ */
+export declare const extractAssertions: (content: string) => AssertionData[];
+/**
+ * Extract alternative flows from a use case content
+ */
+export declare const extractAlternativeFlows: (content: string) => AlternativeFlowData[];
 /**
  * Process a test file to extract features and use cases
  */
-export declare const processTestFile: (testFilePath: string) => FeatureData[];
+export declare const processTestFile: (testFilePath: string, dirPath: string) => FeatureData[];
+/**
+ * Convert a single step to HTML
+ */
+export declare const stepToHtml: (step: StepData, index: number) => string;
+/**
+ * Convert an assertion to HTML
+ */
+export declare const assertionToHtml: (assertion: AssertionData, index: number) => string;
+/**
+ * Convert an alternative flow to HTML
+ */
+export declare const alternativeFlowToHtml: (flow: AlternativeFlowData, index: number) => string;
 /**
  * Convert a single use case to HTML
  */
@@ -60,23 +100,27 @@ export declare const featureToHtml: (feature: FeatureData) => string;
 /**
  * Process a test file and generate HTML
  */
-export declare const processTestFileToHtml: (testFilePath: string) => string;
+export declare const processTestFileToHtml: (testFilePath: string, dirPath: string) => FeatureData[];
 /**
  * Generate navigation tree structure
  */
-export declare const generateNavigation: (featuresByPath: Record<string, FeatureData[]>, currentPath?: string, currentFeature?: string, currentUseCase?: string) => string;
+export declare const generateNavigation: (allFeatures: FeatureData[], currentDirPath?: string, currentFeatureSlug?: string, currentUseCase?: string) => string;
 /**
- * Create a feature map by file path for a directory
+ * Create a collection of all features across all directories
  */
-export declare const createFeaturesByPath: (cypressConfig: Cypress.PluginConfigOptions, config: Config, featureMap: FeatureMap) => Record<string, FeatureData[]>;
+export declare const collectAllFeatures: (cypressConfig: Cypress.PluginConfigOptions, config: Config, featureMap: FeatureMap) => FeatureData[];
 /**
- * Writes a directory's HTML file to the output directory
+ * Write an individual feature page
  */
-export declare const writeDirectoryHtml: (cypressConfig: Cypress.PluginConfigOptions, config: Config, dirPath: string, features: FeatureData[], featuresByPath: Record<string, FeatureData[]>) => void;
+export declare const writeFeatureHtml: (cypressConfig: Cypress.PluginConfigOptions, config: Config, feature: FeatureData, allFeatures: FeatureData[]) => void;
 /**
- * Writes the index HTML file
+ * Write a directory index page that lists the features in that directory
  */
-export declare const writeIndexHtml: (cypressConfig: Cypress.PluginConfigOptions, config: Config, featuresByPath: Record<string, FeatureData[]>) => void;
+export declare const writeDirectoryIndexHtml: (cypressConfig: Cypress.PluginConfigOptions, config: Config, dirPath: string, features: FeatureData[], allFeatures: FeatureData[]) => void;
+/**
+ * Writes the main index HTML file
+ */
+export declare const writeMainIndexHtml: (cypressConfig: Cypress.PluginConfigOptions, config: Config, allFeatures: FeatureData[]) => void;
 /**
  * Copies CSS files to the output directory
  */

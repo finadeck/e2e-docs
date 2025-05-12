@@ -1,3 +1,3 @@
 import { generate, generateStandalone } from './core/generate';
-import { feature, step, usecase, description } from './core/test-helpers';
-export { generate, generateStandalone, feature, step, usecase, description };
+import { feature, usecase, step, description, alternative } from './core/test-helpers';
+export { generate, generateStandalone, feature, step, usecase, description, alternative };

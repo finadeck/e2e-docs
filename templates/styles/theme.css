@@ -14,6 +14,23 @@
   --caption-color: #666666;
   --feature-heading-color: #1a6a96;
   
+  /* Directory and Feature List */
+  --directory-bg: #f9f9f9;
+  --directory-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --directory-heading-color: #2c5282;
+  --feature-list-bg: #f0f7ff;
+  --feature-list-hover-bg: #e6f0fa;
+  --feature-list-color: #2c5282;
+  --feature-list-hover-color: #1a365d;
+  --welcome-heading-color: #2b6cb0;
+  
+  /* Alternative Flow - subtle styling */
+  --alternative-flow-bg: #f9f9f9;
+  --alternative-flow-border: #e2e8f0;
+  --sidebar-alternative-flow-color: #718096;
+  --sidebar-alternative-flow-hover-color: #4a5568;
+  --sidebar-alternative-flow-icon: #a0aec0;
+  
   /* Sidebar */
   --sidebar-width: 300px;
   --sidebar-bg-color: #f8f8f8;
@@ -42,6 +59,7 @@
   --font-size-h2: 1.65rem;
   --font-size-h3: 1.35rem;
   --font-size-h4: 1.15rem;
+  --font-size-h5: 1rem;
   
   /* Layout */
   --content-max-width: 800px;

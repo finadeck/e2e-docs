@@ -5,10 +5,12 @@ import * as path from 'path';
 import { Config, FeatureMap } from '../types';
 import { getFeatures, ensureDirectoryExists } from '../utils/file-utils';
 import { 
-  createFeaturesByPath,
-  writeDirectoryHtml,
-  writeIndexHtml,
-  copyCssFiles
+  collectAllFeatures,
+  writeFeatureHtml,
+  writeDirectoryIndexHtml,
+  writeMainIndexHtml,
+  copyCssFiles,
+  FeatureData
 } from '../utils/html-utils';
 import { copyScreenshotsToFeatures } from '../utils/screenshot-utils';
 
@@ -20,17 +22,40 @@ export const writeFeatures = (
   config: Config,
   featureMap: FeatureMap
 ): void => {
-  // Create a map of features by directory path
-  const featuresByPath = createFeaturesByPath(cypressConfig, config, featureMap);
+  // Collect all features across all directories
+  const allFeatures = collectAllFeatures(cypressConfig, config, featureMap);
   
-  // Process each directory
-  Object.entries(featuresByPath).forEach(([dirPath, features]) => {
-    // Write the HTML for this directory
-    writeDirectoryHtml(cypressConfig, config, dirPath, features, featuresByPath);
+  if (allFeatures.length === 0) {
+    console.warn('No features found in test files. Make sure your test files use the feature() function.');
+    return;
+  }
+  
+  console.log(`Found ${allFeatures.length} features across ${Object.keys(featureMap).length} directories.`);
+  
+  // Group features by directory for directory indexes
+  const featuresByDir: Record<string, FeatureData[]> = {};
+  allFeatures.forEach(feature => {
+    if (!featuresByDir[feature.dirPath]) {
+      featuresByDir[feature.dirPath] = [];
+    }
+    featuresByDir[feature.dirPath].push(feature);
   });
   
-  // Write index.html
-  writeIndexHtml(cypressConfig, config, featuresByPath);
+  // Write individual feature pages
+  console.log('Generating individual feature pages...');
+  allFeatures.forEach(feature => {
+    writeFeatureHtml(cypressConfig, config, feature, allFeatures);
+  });
+  
+  // Write directory index pages
+  console.log('Generating directory index pages...');
+  Object.entries(featuresByDir).forEach(([dirPath, features]) => {
+    writeDirectoryIndexHtml(cypressConfig, config, dirPath, features, allFeatures);
+  });
+  
+  // Write main index.html
+  console.log('Generating main index page...');
+  writeMainIndexHtml(cypressConfig, config, allFeatures);
 };
 
 /**
@@ -44,7 +69,7 @@ export const generateDocs = (cypressConfig: Cypress.PluginConfigOptions, config:
   const features = getFeatures(config, testDir);
   
   // Generate documentation
-  console.log(`Generating HTML documentation for ${Object.keys(features).length} directories...`);
+  console.log(`Generating HTML documentation from ${Object.keys(features).length} directories...`);
   
   // Process screenshots first to ensure they're available when generating HTML
   console.log('Processing screenshots...');
